@@ -1,16 +1,58 @@
-# React + Vite
+# Tuk Tracker UI
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A React + Vite frontend for the Sri Lanka Police three-wheeler (tuk tuk) tracking API. An internal operations console to monitor, filter, and inspect registered three-wheeler vehicles and their GPS ping history.
 
-Currently, two official plugins are available:
+## Tech Stack
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- **Framework:** React 19
+- **Build tool:** Vite 8
+- **Routing:** react-router-dom 7
+- **Styling:** Tailwind CSS v4
+- **Auth:** JWT (stored in localStorage)
 
-## React Compiler
+## Prerequisites
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- Node.js 18+
+- A running instance of the Tuk Tracker API backend
 
-## Expanding the ESLint configuration
+## Setup
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+```bash
+npm install
+```
+
+Create a `.env` file in the project root:
+
+```env
+VITE_API_BASE_URL=http://localhost:3000
+```
+
+## Scripts
+
+| Command           | Description                        |
+|-------------------|------------------------------------|
+| `npm run dev`     | Start Vite dev server              |
+| `npm run build`   | Production build to `dist/`        |
+| `npm run preview` | Preview the production build       |
+| `npm run lint`    | Run ESLint                         |
+
+## Routes
+
+| Path                   | Component      | Description                   |
+|------------------------|----------------|-------------------------------|
+| `/login`               | Login          | Authentication page           |
+| `/`                    | Dashboard      | Fleet overview with filters   |
+| `/vehicles/:vehicleId` | VehicleDetail  | Vehicle GPS + ping history     |
+
+## Environment Variables
+
+| Variable             | Description              |
+|----------------------|--------------------------|
+| `VITE_API_BASE_URL`  | Backend API base URL     |
+
+## Key Features
+
+- JWT-based sign-in/sign-out with protected routes
+- Dashboard listing all registered vehicles with station filter chips
+- Vehicle detail page showing last known GPS coordinates and full ping history
+- Dark ops-console UI theme
