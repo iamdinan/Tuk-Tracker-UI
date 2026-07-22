@@ -1,14 +1,16 @@
-import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { useEffect, useState } from "react";
 import { api } from "../api/client";
 import { useAuth } from "../context/AuthContext";
+import { useVehicleFilters } from "../hooks/useVehicleFilters";
+import VehicleSearchInput from "../components/VehicleSearchInput";
+import StationSelect from "../components/StationSelect";
+import VehicleGrid from "../components/VehicleGrid";
 
 export default function Dashboard() {
   const [vehicles, setVehicles] = useState([]);
   const [stations, setStations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [stationFilter, setStationFilter] = useState("all");
   const { user, signOut } = useAuth();
 
   useEffect(() => {
@@ -21,28 +23,20 @@ export default function Dashboard() {
       .finally(() => setLoading(false));
   }, []);
 
-  function stationName(stationId) {
+  const {
+    stationFilter,
+    setStationFilter,
+    search,
+    setSearch,
+    activeStations,
+    stationCounts,
+    filteredVehicles,
+    isFiltered,
+  } = useVehicleFilters(vehicles, stations);
+
+  function getStationName(stationId) {
     return stations.find((s) => s.station_id === stationId)?.name || "—";
   }
-
-  const filteredVehicles = useMemo(() => {
-    if (stationFilter === "all") return vehicles;
-    return vehicles.filter((v) => v.station_id === stationFilter);
-  }, [vehicles, stationFilter]);
-
-  // Only show stations that actually have vehicles, counts included
-  const stationCounts = useMemo(() => {
-    const counts = new Map();
-    for (const v of vehicles) {
-      counts.set(v.station_id, (counts.get(v.station_id) || 0) + 1);
-    }
-    return counts;
-  }, [vehicles]);
-
-  const activeStations = useMemo(
-    () => stations.filter((s) => stationCounts.has(s.station_id)),
-    [stations, stationCounts],
-  );
 
   return (
     <div className="min-h-screen">
@@ -72,7 +66,7 @@ export default function Dashboard() {
         <div className="flex items-center justify-between mb-4">
           <h2 className="mono text-xs tracking-[0.2em] text-ops-dim">
             REGISTERED VEHICLES — {filteredVehicles.length}
-            {stationFilter !== "all" && ` / ${vehicles.length}`}
+            {isFiltered && ` / ${vehicles.length}`}
           </h2>
         </div>
 
@@ -83,63 +77,21 @@ export default function Dashboard() {
 
         {!loading && !error && (
           <>
-            <div className="flex flex-wrap gap-2 mb-6">
-              <button
-                onClick={() => setStationFilter("all")}
-                className={`mono text-xs rounded-full px-3 py-1.5 border transition ${
-                  stationFilter === "all"
-                    ? "border-ops-amber text-ops-amber bg-ops-amber/10"
-                    : "border-ops-line text-ops-dim hover:border-ops-text hover:text-ops-text"
-                }`}
-              >
-                ALL STATIONS · {vehicles.length}
-              </button>
-              {activeStations.map((s) => (
-                <button
-                  key={s.station_id}
-                  onClick={() => setStationFilter(s.station_id)}
-                  className={`mono text-xs rounded-full px-3 py-1.5 border transition ${
-                    stationFilter === s.station_id
-                      ? "border-ops-amber text-ops-amber bg-ops-amber/10"
-                      : "border-ops-line text-ops-dim hover:border-ops-text hover:text-ops-text"
-                  }`}
-                >
-                  {s.name.toUpperCase()} · {stationCounts.get(s.station_id)}
-                </button>
-              ))}
+            <div className="flex flex-col sm:flex-row gap-3 mb-6">
+              <VehicleSearchInput value={search} onChange={setSearch} />
+              <StationSelect
+                value={stationFilter}
+                onChange={setStationFilter}
+                stations={activeStations}
+                stationCounts={stationCounts}
+                totalCount={vehicles.length}
+              />
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {filteredVehicles.map((v) => (
-                <Link
-                  key={v.vehicle_id}
-                  to={`/vehicles/${v.vehicle_id}`}
-                  className="bg-ops-panel border border-ops-line rounded-lg p-4 hover:border-ops-amber transition group"
-                >
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="mono text-ops-amber text-sm">
-                      {v.reg_number}
-                    </span>
-                    <span className="w-2 h-2 rounded-full bg-ops-green" />
-                  </div>
-                  <div className="text-sm text-ops-text mb-1">
-                    Vehicle #{v.vehicle_id}
-                  </div>
-                  <div className="mono text-xs text-ops-dim">
-                    Device: {v.device_id}
-                  </div>
-                  <div className="mono text-xs text-ops-dim">
-                    Station: {stationName(v.station_id)}
-                  </div>
-                </Link>
-              ))}
-            </div>
-
-            {filteredVehicles.length === 0 && (
-              <div className="mono text-ops-dim text-sm">
-                No vehicles for this station.
-              </div>
-            )}
+            <VehicleGrid
+              vehicles={filteredVehicles}
+              getStationName={getStationName}
+            />
           </>
         )}
       </main>
