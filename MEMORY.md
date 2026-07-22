@@ -2,17 +2,19 @@
 
 ## Overview
 
-Tuk Tuk Tracking Console - React + Vite frontend for the Sri Lanka Police
-three-wheeler tracking API. It consumes an existing deployed Express/MongoDB
-REST backend.
+Tuk Tracker UI - React + Vite frontend for the Sri Lanka Police three-wheeler
+tracking API. It is an authenticated internal operations console for listing,
+filtering, and inspecting registered tuk tuk vehicles and their GPS ping
+history.
 
 ## Tech Stack
 
-- **Build tool:** Vite
-- **Framework:** React functional components and hooks
-- **Routing:** `react-router-dom`
+- **Build tool:** Vite 8
+- **Framework:** React 19 functional components and hooks
+- **Routing:** `react-router-dom` 7
 - **Styling:** Tailwind CSS v4 via the `@tailwindcss/vite` plugin
-- **State:** React Context (`AuthContext`) plus local component state
+- **Maps:** Leaflet 1.9 + `react-leaflet` 5
+- **State:** React Context (`AuthContext`), local component state, custom hooks
 - **HTTP:** native `fetch`, wrapped in one API client module
 - **Env:** Vite env vars (`VITE_API_BASE_URL`)
 
@@ -21,6 +23,7 @@ REST backend.
 ```text
 .
 |-- .env                         # VITE_API_BASE_URL, if present, is gitignored
+|-- .env.sample
 |-- vite.config.js               # Vite + React + Tailwind plugin config
 |-- MEMORY.md
 |-- DECISIONS.md
@@ -32,54 +35,65 @@ REST backend.
 |   |   `-- client.js            # Fetch wrapper and all API calls
 |   |-- context/
 |   |   `-- AuthContext.jsx      # Auth state, sign-in, sign-out
+|   |-- hooks/
+|   |   |-- useVehicleDetail.js  # Vehicle + ping fetching/sorting
+|   |   `-- useVehicleFilters.js # Station/search filtering
 |   |-- components/
-|   |   `-- ProtectedRoute.jsx   # Redirects to /login if unauthenticated
+|   |   |-- ProtectedRoute.jsx
+|   |   |-- StationSelect.jsx
+|   |   |-- VehicleSearchInput.jsx
+|   |   |-- VehicleGrid.jsx
+|   |   |-- VehicleCard.jsx
+|   |   |-- VehicleSummaryCard.jsx
+|   |   |-- PingMap.jsx
+|   |   `-- PingList.jsx
 |   `-- pages/
-|       |-- Login.jsx            # POST /auth/sign-in form
-|       |-- Dashboard.jsx        # Vehicle list + station filter
-|       `-- VehicleDetail.jsx    # Single vehicle + ping history
+|       |-- Login.jsx
+|       |-- Dashboard.jsx
+|       `-- VehicleDetail.jsx
 `-- public/
-    |-- favicon.svg
+    |-- favicon.png
     `-- icons.svg
 ```
 
 ## Design System
 
-"Ops console" aesthetic: dark navy background (`#0b1220`), amber accent
-(`#f2a93b`) for active/highlighted state, green dot for live vehicle status,
-and monospace styling for IDs, coordinates, timestamps, and device keys.
-Tailwind theme tokens are defined in `src/index.css` under `@theme`:
-`--color-ops-bg`, `--color-ops-panel`, `--color-ops-line`,
-`--color-ops-amber`, `--color-ops-green`, `--color-ops-red`,
-`--color-ops-text`, `--color-ops-dim`, `--font-mono`, and `--font-sans`.
+The UI uses a dark operations-console aesthetic: navy background (`#0b1220`),
+amber accent (`#f2a93b`) for active/highlighted state, green dot for vehicle
+status, and monospace styling for IDs, coordinates, timestamps, and device
+keys. The page background has a subtle grid pattern. Tailwind theme tokens are
+defined in `src/index.css` under `@theme`: `--color-ops-bg`,
+`--color-ops-panel`, `--color-ops-line`, `--color-ops-amber`,
+`--color-ops-green`, `--color-ops-red`, `--color-ops-text`,
+`--color-ops-dim`, `--font-mono`, and `--font-sans`.
 
-The current source contains some mojibake in visible strings where typographic
-characters were encoded incorrectly, for example the loading ellipsis, em dash,
-middle dot, back arrow, and fallback dash. The docs are now normalized to ASCII,
-but the UI source has not been changed.
+The current source contains mojibake in visible strings where typographic
+characters were encoded incorrectly, including ellipses, dashes, bullets, the
+back arrow, separators, and the clear-search symbol. The docs are normalized to
+ASCII, but the UI source has not been cleaned up yet.
 
 ## API Client (`src/api/client.js`)
 
 - `BASE_URL` is read directly from `import.meta.env.VITE_API_BASE_URL`.
-- The current client does **not** strip trailing slashes from the base URL. If
-  `.env` contains a trailing slash, request paths such as `/auth/sign-in` can
-  produce double-slash URLs.
+- The client does not strip trailing slashes from the base URL. If `.env`
+  contains a trailing slash, request paths such as `/auth/sign-in` can produce
+  double-slash URLs.
 - `request()` wraps `fetch` and builds JSON requests with
   `Content-Type: application/json`.
-- Attaches `Authorization: Bearer <token>` automatically when
-  `tuktuk_token` exists in `localStorage`.
-- Attaches `X-API-Key` when explicitly passed, currently only through
-  `createPing`.
+- Attaches `Authorization: Bearer <token>` automatically when `tuktuk_token`
+  exists in `localStorage`.
+- Supports an optional `X-API-Key` header internally, but no exported API method
+  currently passes an API key.
 - On any `401` response: clears `tuktuk_token` and `tuktuk_user` from
   `localStorage`, hard redirects to `/login`, and throws `Session expired`.
 - Non-OK responses attempt to read a JSON `message` or `error` field before
   throwing a generic status-based error.
 - `204` responses return `null`; all other successful responses are parsed as
   JSON.
-- Exposes one method per backend route: `signIn`, `getProvinces`,
+- Exposes methods for backend read/auth routes: `signIn`, `getProvinces`,
   `getProvince`, `getDistricts`, `getDistrict`, `getStations`, `getStation`,
-  `getVehicles`, `getVehicle`, `getVehiclePings`, `getVehiclePing`,
-  `getLastPosition`, and `createPing`.
+  `getVehicles`, `getVehicle`, `getVehiclePings`, `getVehiclePing`, and
+  `getLastPosition`.
 
 ## Auth (`src/context/AuthContext.jsx`)
 
@@ -91,7 +105,7 @@ but the UI source has not been changed.
 - `ProtectedRoute` checks context `user` or a token already in `localStorage`
   to cover page refreshes before redirecting unauthenticated users to `/login`.
 
-## Pages
+## Pages and Data Flow
 
 ### `Login.jsx`
 
@@ -102,38 +116,60 @@ but the UI source has not been changed.
 ### `Dashboard.jsx`
 
 - Fetches `getVehicles()` and `getStations()` in parallel on mount.
-- Renders a grid of vehicle cards showing registration number, vehicle ID,
-  device ID, station name, and a green status dot.
-- Each card links to `/vehicles/:vehicleId`.
-- Station filter is a horizontal chip bar above the grid.
-- Station chips are built only from stations with at least one vehicle, using a
-  `Map` of `station_id` to count.
-- "ALL STATIONS" shows the total vehicle count; each station chip shows its own
-  count.
-- Filtering is client-side against the already-fetched `vehicles` array.
-- Header count shows `filtered / total` when a station filter is active.
-- The header shows the signed-in username, falling back to `operator`, plus a
+- Uses `useVehicleFilters()` for station filter state, plate-number search
+  state, station counts, active stations, filtered vehicle output, and
+  `isFiltered`.
+- Renders a responsive vehicle grid through `VehicleGrid` and `VehicleCard`.
+- Cards show registration number, vehicle ID, device ID, station name, and a
+  green status dot, and link to `/vehicles/:vehicleId`.
+- Station filtering is a native select (`StationSelect`), not chips. It shows
+  `ALL STATIONS` plus only stations that have at least one vehicle, with counts.
+- Search is client-side and matches `reg_number` only.
+- Filtering is fully client-side against the already-fetched `vehicles` array.
+- Header count shows `filtered / total` whenever either station or search
+  filtering is active.
+- Header shows the signed-in username, falling back to `operator`, plus a
   sign-out button.
 
 ### `VehicleDetail.jsx`
 
+- Uses `useVehicleDetail(vehicleId)`.
 - Fetches `getVehicle(vehicleId)` and `getVehiclePings(vehicleId)` in parallel.
-- Sorts pings reverse-chronologically by `timestamp` before rendering.
-- Shows last known latitude, longitude, and timestamp from `vehicle.last_ping`.
-- Shows ping history rows with timestamp plus latitude/longitude.
+- Sorts pings reverse-chronologically by `timestamp`.
+- Derives `latestPing` as the first sorted ping, not from `vehicle.last_ping`.
+- Shows a vehicle summary card with registration number, vehicle/device IDs,
+  latest latitude/longitude, and latest timestamp.
+- Shows a Leaflet map (`PingMap`) and a scrollable ping log (`PingList`) side by
+  side on large screens.
 - Provides a link back to the dashboard.
+
+## Map View
+
+- `PingMap` uses `react-leaflet` with `MapContainer`, `TileLayer`,
+  `CircleMarker`, and `Popup`.
+- Tile source is CARTO dark basemap:
+  `https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png`.
+- The map centers on `latestPing`, starts at zoom 14, and constrains panning to
+  one world copy using world bounds, `maxBoundsViscosity`, and `noWrap`.
+- All pings render as circle markers; latest ping is larger and amber, older
+  pings are smaller and muted.
+- Empty ping history renders a panel message instead of a map.
 
 ## Known Gaps / Follow-ups
 
-- No live map view for `last-position`.
-- No province or district filtering; only station filtering exists.
-- `createPing` exists in the API client but is not called from any page.
-- Station filtering is client-side only. If fleet size grows, consider a
-  server-side `GET /vehicles?station_id=` backend contract.
-- The visible UI strings should be cleaned up to replace mojibake with proper
+- No province or district filtering; only station and plate-number filtering
+  exist.
+- `getLastPosition` exists in the API client but is not currently called from
+  any page.
+- No `createPing` export in the current frontend API client.
+- Station and search filtering are client-side only. If fleet size grows,
+  consider a server-side `GET /vehicles?station_id=&q=` backend contract.
+- Visible UI strings should be cleaned up to replace mojibake with proper
   characters or ASCII equivalents.
 - `VITE_API_BASE_URL` should be configured without a trailing slash unless the
   client is updated to normalize it.
+- Leaflet tiles require network access to CARTO/OpenStreetMap tile services in
+  the operator's environment.
 
 ## Backend CORS Requirement
 

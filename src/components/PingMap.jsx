@@ -2,6 +2,13 @@ import { MapContainer, TileLayer, CircleMarker, Popup } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import { formatDate } from "../utils/formatDate";
 
+// Full world bounds — stops panning into empty space beyond the single
+// world copy, without restricting the map to any specific region.
+const WORLD_BOUNDS = [
+  [-90, -180],
+  [90, 180],
+];
+
 export default function PingMap({ pings, latestPing }) {
   if (pings.length === 0) {
     return (
@@ -18,11 +25,16 @@ export default function PingMap({ pings, latestPing }) {
       <MapContainer
         center={center}
         zoom={14}
+        minZoom={2}
+        maxBounds={WORLD_BOUNDS}
+        maxBoundsViscosity={1.0}
+        worldCopyJump={false}
         style={{ height: "420px", width: "100%", background: "#0b1220" }}
       >
         <TileLayer
           url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
           attribution="&copy; OpenStreetMap &copy; CARTO"
+          noWrap={true}
         />
 
         {pings.map((ping) => {
