@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import DemoCredentialsBanner from "../components/DemoCredentialsBanner";
 
 export default function Login() {
   const [username, setUsername] = useState("");
@@ -26,6 +27,8 @@ export default function Login() {
 
   return (
     <div className="min-h-screen flex items-center justify-center px-4">
+      <DemoCredentialsBanner />
+
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
           <div className="mono text-ops-amber text-xs tracking-[0.3em] mb-2">
