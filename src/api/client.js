@@ -58,11 +58,4 @@ export const api = {
   getVehiclePings: (id) => request(`/vehicles/${id}/pings`),
   getVehiclePing: (id, pingId) => request(`/vehicles/${id}/pings/${pingId}`),
   getLastPosition: (id) => request(`/vehicles/${id}/last-position`),
-
-  createPing: (id, { latitude, longitude }, apiKey) =>
-    request(`/vehicles/${id}/pings`, {
-      method: "POST",
-      body: { latitude, longitude },
-      apiKey,
-    }),
 };
