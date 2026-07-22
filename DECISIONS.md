@@ -25,16 +25,19 @@ the theme tokens let the app reference semantic colors such as
 library such as MUI or Chakra would add weight and work against the custom
 ops-console visual identity.
 
-## 3. React Context for auth, no external state library
+## 3. React Context for auth, local hooks for page state
 
 **Decision:** A single `AuthContext` holds `user` and exposes `signIn` /
-`signOut`; the token itself lives in `localStorage`.
+`signOut`; vehicle filter/detail logic lives in page-specific hooks.
 
-**Why:** Auth is currently the only cross-cutting state. Vehicle and station
-data is fetched per page and does not need global caching yet.
+**Why:** Auth is currently the only cross-cutting state. Vehicle, station, and
+ping data are fetched per page and do not need global caching yet. The custom
+hooks keep page components readable without introducing a state or data-fetching
+library.
 
 **Rejected:** Redux, Zustand, and React Query are easier to justify once the app
-has real caching, background refetching, optimistic updates, or live map data.
+has real caching, background refetching, optimistic updates, or live update
+streams.
 
 ## 4. Token storage: localStorage
 
@@ -63,6 +66,10 @@ function and one exported method per endpoint.
 message extraction, and API surface naming so pages do not duplicate request
 logic.
 
+**Current scope:** The wrapper supports an optional API key header internally,
+but the current exported methods are read/auth oriented and do not include
+`createPing`.
+
 ## 6. Base URL is currently not normalized
 
 **Decision in current code:** `BASE_URL` is assigned directly from
@@ -76,34 +83,52 @@ trailing slash. A trailing slash combined with path strings such as
 slashes with `.replace(/\/+$/, "")`, but the current code does not do that.
 Adding that normalization remains a useful hardening change.
 
-## 7. Station filter: client-side chips
+## 7. Station and plate filtering: client-side controls
 
-**Decision:** Horizontal toggle chips, one per station that has at least one
-vehicle, plus an "ALL STATIONS" chip. Each chip shows a count.
+**Decision:** Use a plate-number search input and a native station select. The
+station select includes `ALL STATIONS` and stations that have at least one
+vehicle, each with counts.
 
-**Why:** The expected fleet size is small enough to show stations directly.
-Chips keep options and counts visible for scanning.
+**Why:** The expected fleet size is small enough to fetch once and filter in
+the browser. A native select is compact, accessible, and scales better than a
+long horizontal chip row as station count grows.
 
-**Rejected:** Server-side filtering via `station_id` query param is not used in
-the current frontend. Revisit if the backend supports it and fleet size makes
+**Rejected:** Server-side filtering via query parameters is not used in the
+current frontend. Revisit if the backend supports it and fleet size makes
 full-list fetching expensive.
 
-## 8. No map library yet
+## 8. Leaflet map for ping history
 
-**Decision:** Vehicle detail shows last latitude/longitude and timestamp as
-text, not a rendered map.
+**Decision:** Vehicle detail renders ping history on a Leaflet map using
+`react-leaflet` and CARTO dark tiles, alongside a scrollable ping log.
 
-**Why:** The current app is scoped to auth, list, detail, and station filtering
-before adding a mapping dependency.
+**Why:** The app needs operators to inspect where a vehicle has reported from,
+not just read coordinates. Leaflet is a proven mapping library, and
+`react-leaflet` fits the existing React component model without needing a paid
+map SDK.
 
-**Rejected for now:** Leaflet or Mapbox integration. It is straightforward to
-add later once the data flow is stable against the deployed API.
+**Tradeoff accepted:** The map depends on third-party tile service availability
+from the operator's network. If deployment requires offline/intranet-only use,
+tile hosting needs to be revisited.
 
-## 9. Mojibake cleanup still pending in UI source
+## 9. Latest ping comes from ping history
+
+**Decision:** `useVehicleDetail` sorts fetched pings by timestamp descending
+and derives `latestPing` from the first item.
+
+**Why:** This keeps the summary card, map, and ping log consistent with the
+same dataset rendered on the page.
+
+**Tradeoff accepted:** The page still fetches the vehicle object, but does not
+trust or depend on `vehicle.last_ping` for the displayed latest coordinates.
+If ping history is expensive or truncated later, the app may need to combine
+`getLastPosition` or `vehicle.last_ping` back into the detail flow.
+
+## 10. Mojibake cleanup still pending in UI source
 
 **Decision in current code:** Several visible strings contain mojibake caused by
 mis-encoded typographic characters.
 
 **Implication:** The docs avoid those broken glyphs, but the UI source still
-needs a small cleanup pass for loading ellipses, separators, arrows, and
-fallback dashes.
+needs a small cleanup pass for loading ellipses, separators, arrows, bullets,
+fallback dashes, and the search clear symbol.

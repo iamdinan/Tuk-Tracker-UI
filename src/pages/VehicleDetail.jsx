@@ -2,6 +2,7 @@ import { useParams, Link } from "react-router-dom";
 import { useVehicleDetail } from "../hooks/useVehicleDetail";
 import VehicleSummaryCard from "../components/VehicleSummaryCard";
 import PingMap from "../components/PingMap";
+import PingList from "../components/PingList";
 
 export default function VehicleDetail() {
   const { vehicleId } = useParams();
@@ -16,7 +17,7 @@ export default function VehicleDetail() {
         </Link>
       </header>
 
-      <main className="p-6 max-w-3xl">
+      <main className="p-6 max-w-[1600px] mx-auto">
         {loading && <div className="mono text-ops-dim">Loading vehicle…</div>}
         {error && <div className="mono text-ops-red">{error}</div>}
 
@@ -25,9 +26,13 @@ export default function VehicleDetail() {
             <VehicleSummaryCard vehicle={vehicle} latestPing={latestPing} />
 
             <h2 className="mono text-xs tracking-[0.2em] text-ops-dim mb-3">
-              PING MAP — {pings.length} RECORDED
+              PING HISTORY — {pings.length} RECORDED
             </h2>
-            <PingMap pings={pings} latestPing={latestPing} />
+
+            <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px]">
+              <PingMap pings={pings} latestPing={latestPing} />
+              <PingList pings={pings} latestPing={latestPing} />
+            </div>
           </>
         )}
       </main>
