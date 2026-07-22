@@ -24,6 +24,7 @@ history.
 .
 |-- .env                         # VITE_API_BASE_URL, if present, is gitignored
 |-- .env.sample
+|-- vercel.json                  # SPA rewrites for Vercel deployment
 |-- vite.config.js               # Vite + React + Tailwind plugin config
 |-- MEMORY.md
 |-- DECISIONS.md
@@ -46,7 +47,8 @@ history.
 |   |   |-- VehicleCard.jsx
 |   |   |-- VehicleSummaryCard.jsx
 |   |   |-- PingMap.jsx
-|   |   `-- PingList.jsx
+|   |   |-- PingList.jsx
+|   |   `-- DemoCredentialsBanner.jsx
 |   `-- pages/
 |       |-- Login.jsx
 |       |-- Dashboard.jsx
@@ -112,6 +114,14 @@ ASCII, but the UI source has not been cleaned up yet.
 - Username/password form calls `signIn()` and redirects to `/` on success.
 - Shows an inline error from `Error.message` on failure.
 - Shows a loading button state while the sign-in request is pending.
+- Renders `DemoCredentialsBanner` as a fixed bottom-right widget.
+
+### `DemoCredentialsBanner` (`src/components/DemoCredentialsBanner.jsx`)
+
+- Collapsible floating panel on the login page showing demo account credentials.
+- Default state is expanded; can be minimized to a small amber "i" button.
+- Displays hardcoded demo accounts: `dispatcher` / `dispatch123`.
+- Uses the same ops-console theme tokens for styling.
 
 ### `Dashboard.jsx`
 
@@ -154,6 +164,11 @@ ASCII, but the UI source has not been cleaned up yet.
 - All pings render as circle markers; latest ping is larger and amber, older
   pings are smaller and muted.
 - Empty ping history renders a panel message instead of a map.
+
+## Vercel Deployment (`vercel.json`)
+
+- SPA rewrites: all routes (`/(.*)`) are served from `/index.html` so client-side
+  routing works on Vercel without 404s on hard refresh.
 
 ## Known Gaps / Follow-ups
 
